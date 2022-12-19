@@ -115,10 +115,18 @@ public:
     void AddDocument(int document_id, const string& document, DocumentStatus status,
         const vector<int>& ratings)
     {
-            if (documents_.count(document_id) || (INVALID_DOCUMENT_ID >= document_id) || !IsValidWord(document))
-            {
-                throw invalid_argument("Документы не корректны");
-            }
+        if (documents_.count(document_id))
+        {
+            throw invalid_argument("Такой ID уже существует");
+        }
+        if (INVALID_DOCUMENT_ID >= document_id)
+        {
+            throw invalid_argument("ID не может быть отрицательным");
+        }
+        if (!IsValidWord(document))
+        {
+            throw invalid_argument("Наличие спец.символов в документе");
+        }
         added_numbers.push_back(document_id);
         const vector<string> words = SplitIntoWordsNoStop(document);
         const double inv_word_count = 1.0 / words.size();
@@ -132,10 +140,6 @@ public:
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const
     {
-        if (!IsValidWord(raw_query))
-        {
-            throw invalid_argument("Документы не корректны, найдены спецсимволы ");
-        }
         const Query query = ParseQuery(raw_query);
         auto matched_documents = FindAllDocuments(query, document_predicate);
 
@@ -179,10 +183,6 @@ public:
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const
     {
-        if (!IsValidWord(raw_query))
-        {
-            throw invalid_argument("Документы не корректны, найдены спецсимволы ");
-        }
         const Query query = ParseQuery(raw_query);
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
@@ -220,7 +220,7 @@ public:
         }
         else
         {
-            return added_numbers[index-1];
+            return added_numbers[index];
         }
     }
 
@@ -284,11 +284,6 @@ private:
 
     QueryWord ParseQueryWord(string text) const
     {
-        if ((text[0] == '-' && text[1] == '-') || text == "-")
-        {
-            throw invalid_argument("Запрос не корректен ");
-        }
-
         bool is_minus = false;
         // Word shouldn't be empty
         if (text[0] == '-')
@@ -296,6 +291,11 @@ private:
             is_minus = true;
             text = text.substr(1);
         }
+        if (text[0] == '-'|| text == "")
+        {
+            throw invalid_argument("Запрос не корректен, проверьте минусы ");
+        }
+
         return { text, is_minus, IsStopWord(text) };
     }
 
@@ -310,6 +310,10 @@ private:
         Query query;
         for (const string& word : SplitIntoWords(text))
         {
+            if (!IsValidWord(word))
+            {
+                throw invalid_argument("Запрос не корректен, спец.символы ");
+            }
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.is_stop)
             {
@@ -388,7 +392,7 @@ int main()
         search_server.AddDocument(62, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, { 5, -12, 2, 1 });
         search_server.AddDocument(43, "ухоженный скворец евгений"s, DocumentStatus::BANNED, { 9 });
         cout << "ACTUAL by default:"s << endl;
-        for (const Document& document : search_server.FindTopDocuments("пушистый ухоженный кот "s))
+        for (const Document& document : search_server.FindTopDocuments("пушистый ухоженный кот"s))
         {
             PrintDocument(document);
         }
