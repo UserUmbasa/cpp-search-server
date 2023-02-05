@@ -1,6 +1,5 @@
 #pragma once
 #include <iostream>
-#include<string>
 #include<set>
 #include<algorithm>
 #include<vector>
@@ -17,15 +16,8 @@ class SearchServer
 {
 public:
     template <typename StringContainer>
-    explicit SearchServer(const StringContainer& stop_words)
-        : stop_words_(MakeUniqueNonEmptyStrings(stop_words))  // Extract non-empty stop words
-    {
-        if (!all_of(stop_words_.begin(), stop_words_.end(), IsValidWord)) {
-            throw std::invalid_argument({ "Some of stop words are invalid" });
-        }
-    }
+    explicit SearchServer(const StringContainer& stop_words);    
     explicit SearchServer(const std::string str);
-
 
     void AddDocument(int document_id, const std::string& document, DocumentStatus status,
         const std::vector<int>& ratings);
@@ -47,6 +39,15 @@ public:
         return document_ids_.at(index);
     }
  private:
+     struct QueryWord {
+         std::string data;
+         bool is_minus;
+         bool is_stop;
+     };
+     struct Query {
+         std::set<std::string> plus_words;
+         std::set<std::string> minus_words;
+     };
       std::map<std::string,std::map<int, double>> word_to_document_freqs_;
       std::set<std::string> stop_words_;
       std::map<int,DocumentData> documents_;
@@ -55,33 +56,27 @@ public:
       QueryWord ParseQueryWord(const std::string& text) const;
       Query ParseQuery(const std::string& text) const;
 
-     static bool IsValidWord(const std::string& word) 
-     {
-         // A valid word must not contain special characters
-         return std::none_of(word.begin(), word.end(), [](char c) 
-             {
-             return c >= '\0' && c < ' ';
-             });
-     }
-     static int ComputeAverageRating(const std::vector<int>& ratings) {
-         int rating_sum = 0;
-         for (const int rating : ratings) {
-             rating_sum += rating;
-         }
-         return rating_sum / static_cast<int>(ratings.size());
-     }
+      static bool IsValidWord(const std::string& word);     
+      static int ComputeAverageRating(const std::vector<int>& ratings); 
 
      std::vector<std::string> SplitIntoWordsNoStop(const std::string& text) const; 
      bool IsStopWord(const std::string& word) const; 
 
      // Existence required
-     double ComputeWordInverseDocumentFreq(const std::string& word) const {
-         return std::log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
-     }
+     double ComputeWordInverseDocumentFreq(const std::string& word) const; 
 
      template <typename DocumentPredicate>
      std::vector<Document> FindAllDocuments(const Query& query, DocumentPredicate document_predicate) const;
 };
+
+template <typename StringContainer>
+SearchServer::SearchServer(const StringContainer& stop_words)
+    : stop_words_(MakeUniqueNonEmptyStrings(stop_words))  // Extract non-empty stop words
+{
+    if (!all_of(stop_words_.begin(), stop_words_.end(), IsValidWord)) {
+        throw std::invalid_argument({ "Some of stop words are invalid" });
+    }
+}
 
 template <typename DocumentPredicate>
 std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_query, DocumentPredicate document_predicate) const {
@@ -136,3 +131,4 @@ std::vector<Document> SearchServer::FindAllDocuments(const Query& query, Documen
     }
     return matched_documents;
 }
+
