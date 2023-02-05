@@ -34,7 +34,6 @@ template <typename Iterator>
 std::ostream& operator<<(std::ostream& out, const IteratorRange<Iterator>& range) {
     for (Iterator it = range.begin(); it != range.end(); ++it) {
         PrintDocument(*it);
-        //out << *it;
     }
     return out;
 }
