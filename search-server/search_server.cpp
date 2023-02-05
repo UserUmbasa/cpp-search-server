@@ -42,7 +42,7 @@ std::vector<std::string> SearchServer::SplitIntoWordsNoStop(const std::string& t
 bool SearchServer::IsStopWord(const std::string& word) const {
     return stop_words_.count(word) > 0;
 }
-QueryWord SearchServer::ParseQueryWord(const std::string& text) const
+SearchServer::QueryWord SearchServer::ParseQueryWord(const std::string& text) const
 {
     if (text.empty()) {
         throw std::invalid_argument({ "Query word is empty" });
@@ -59,7 +59,7 @@ QueryWord SearchServer::ParseQueryWord(const std::string& text) const
 
     return { word, is_minus, IsStopWord(word) };
 }
-Query SearchServer::ParseQuery(const std::string& text) const {
+SearchServer::Query SearchServer::ParseQuery(const std::string& text) const {
     Query result;
     for (const std::string& word : SplitIntoWords(text)) {
         const auto query_word = ParseQueryWord(word);
@@ -97,3 +97,22 @@ std::tuple<std::vector<std::string>, DocumentStatus> SearchServer::MatchDocument
     }
     return { matched_words, documents_.at(document_id).status };
 }
+bool SearchServer::IsValidWord(const std::string& word)
+{
+    // A valid word must not contain special characters
+    return std::none_of(word.begin(), word.end(), [](char c)
+        {
+            return c >= '\0' && c < ' ';
+        });
+}
+ int SearchServer::ComputeAverageRating(const std::vector<int>& ratings) 
+ {
+     int rating_sum = 0;
+     for (const int rating : ratings) {
+         rating_sum += rating;
+     }
+     return rating_sum / static_cast<int>(ratings.size());
+ }
+ double SearchServer::ComputeWordInverseDocumentFreq(const std::string& word) const {
+     return std::log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
+ }
