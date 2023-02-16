@@ -4,11 +4,12 @@
 
 SearchServer::SearchServer(const std::string str)
 {
-	SearchServer::stop_words_ = MakeUniqueNonEmptyStrings(SplitIntoWords(str));
-	if (!all_of(SearchServer::stop_words_.begin(), stop_words_.end(), IsValidWord)) {
-		throw std::invalid_argument({ "Some of stop words are invalid" });
-	}
+    SearchServer::stop_words_ = MakeUniqueNonEmptyStrings(SplitIntoWords(str));
+    if (!all_of(SearchServer::stop_words_.begin(), stop_words_.end(), IsValidWord)) {
+        throw std::invalid_argument({ "Some of stop words are invalid" });
+    }
 }
+
 void SearchServer::AddDocument(int document_id, const std::string& document, DocumentStatus status,
     const std::vector<int>& ratings) {
     if ((document_id < 0) || (documents_.count(document_id) > 0)) {
@@ -18,6 +19,8 @@ void SearchServer::AddDocument(int document_id, const std::string& document, Doc
     const double inv_word_count = 1.0 / words.size();
     for (const std::string& word : words) {
         word_to_document_freqs_[word][document_id] += inv_word_count;
+        document_to_word_freqs[document_id][word] += inv_word_count; ///////////////////////////////////////
+
     }
     documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
     document_ids_.push_back(document_id);
@@ -31,7 +34,7 @@ std::vector<std::string> SearchServer::SplitIntoWordsNoStop(const std::string& t
     std::vector<std::string> words;
     for (const std::string& word : SplitIntoWords(text)) {
         if (!IsValidWord(word)) {
-            throw std::invalid_argument({ "Word is invalid"});
+            throw std::invalid_argument({ "Word is invalid" });
         }
         if (!IsStopWord(word)) {
             words.push_back(word);
@@ -105,14 +108,59 @@ bool SearchServer::IsValidWord(const std::string& word)
             return c >= '\0' && c < ' ';
         });
 }
- int SearchServer::ComputeAverageRating(const std::vector<int>& ratings) 
- {
-     int rating_sum = 0;
-     for (const int rating : ratings) {
-         rating_sum += rating;
-     }
-     return rating_sum / static_cast<int>(ratings.size());
- }
- double SearchServer::ComputeWordInverseDocumentFreq(const std::string& word) const {
-     return std::log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
- }
+int SearchServer::ComputeAverageRating(const std::vector<int>& ratings)
+{
+    int rating_sum = 0;
+    for (const int rating : ratings) {
+        rating_sum += rating;
+    }
+    return rating_sum / static_cast<int>(ratings.size());
+}
+double SearchServer::ComputeWordInverseDocumentFreq(const std::string& word) const {
+    return std::log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
+}
+// Разработайте метод получения частот слов по id документа: 
+std::map<std::string, double> SearchServer::GetWordFrequencies(int document_id) const
+{
+    if(document_to_word_freqs.count(document_id)!=0)
+    {
+        return document_to_word_freqs.at(document_id);
+    }
+    static std::map<std::string, double> empty_word_frequencies{};
+    return empty_word_frequencies;    
+}
+std::vector<int>::const_iterator SearchServer::begin() const
+{
+    return document_ids_.begin();
+}
+
+std::vector<int>::const_iterator SearchServer::end() const
+{
+    return document_ids_.end();
+}
+
+std::vector<int>::iterator SearchServer::begin()
+{
+    return document_ids_.begin();
+}
+
+std::vector<int>::iterator SearchServer::end()
+{
+    return document_ids_.end();
+}
+// 3) Разработайте метод удаления документов из поискового сервера
+void SearchServer::RemoveDocument(int document_id)
+{
+    SearchServer::documents_.erase(document_id);
+    SearchServer::document_to_word_freqs.erase(document_id);
+    for (auto i :SearchServer::word_to_document_freqs_)
+    {
+        auto temp = i.second;
+        if(temp.count(document_id))
+        {
+            temp.erase(document_id);
+        }
+    }
+    auto it = std::lower_bound(std::begin(SearchServer::document_ids_), std::end(SearchServer::document_ids_), document_id);
+    SearchServer::document_ids_.erase(it);
+}
