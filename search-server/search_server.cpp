@@ -23,7 +23,7 @@ void SearchServer::AddDocument(int document_id, const std::string& document, Doc
 
     }
     documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
-    document_ids_.push_back(document_id);
+    document_ids_.emplace(document_id);
 }
 std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_query, DocumentStatus status) const {
     return FindTopDocuments(raw_query, [status](int document_id, DocumentStatus document_status, int rating) {
@@ -120,47 +120,44 @@ double SearchServer::ComputeWordInverseDocumentFreq(const std::string& word) con
     return std::log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
 }
 // Разработайте метод получения частот слов по id документа: 
-std::map<std::string, double> SearchServer::GetWordFrequencies(int document_id) const
+const std::map<std::string, double>& SearchServer::GetWordFrequencies(int document_id) const
 {
     if(document_to_word_freqs.count(document_id)!=0)
     {
-        return document_to_word_freqs.at(document_id);
+        return  document_to_word_freqs.at(document_id)   ;
     }
     static std::map<std::string, double> empty_word_frequencies{};
     return empty_word_frequencies;    
 }
-std::vector<int>::const_iterator SearchServer::begin() const
+std::set<int>::const_iterator SearchServer::begin() const
 {
     return document_ids_.begin();
 }
 
-std::vector<int>::const_iterator SearchServer::end() const
+std::set<int>::const_iterator SearchServer::end() const
 {
     return document_ids_.end();
 }
 
-std::vector<int>::iterator SearchServer::begin()
+std::set<int>::iterator SearchServer::begin()
 {
     return document_ids_.begin();
 }
 
-std::vector<int>::iterator SearchServer::end()
+std::set<int>::iterator SearchServer::end()
 {
     return document_ids_.end();
 }
 // 3) Разработайте метод удаления документов из поискового сервера
 void SearchServer::RemoveDocument(int document_id)
 {
-    SearchServer::documents_.erase(document_id);
-    SearchServer::document_to_word_freqs.erase(document_id);
-    for (auto i :SearchServer::word_to_document_freqs_)
+    //  const map<string, double>& GetWordFrequencies(int document_id) const;
+    for (auto& word: GetWordFrequencies(document_id))
     {
-        auto temp = i.second;
-        if(temp.count(document_id))
-        {
-            temp.erase(document_id);
-        }
+        word_to_document_freqs_[word.first].erase(document_id);
     }
+    documents_.erase(document_id);
+    document_to_word_freqs.erase(document_id);
     auto it = std::lower_bound(std::begin(SearchServer::document_ids_), std::end(SearchServer::document_ids_), document_id);
     SearchServer::document_ids_.erase(it);
 }
