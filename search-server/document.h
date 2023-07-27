@@ -1,16 +1,5 @@
 #pragma once
-#include<string>
-#include<set>
-#include<iostream>
-
-
-
-enum class DocumentStatus {
-    ACTUAL,
-    IRRELEVANT,
-    BANNED,
-    REMOVED,
-};
+#include <iostream>
 struct Document {
     Document() = default;
     Document(int id, double relevance, int rating)
@@ -22,9 +11,11 @@ struct Document {
     double relevance = 0.0;
     int rating = 0;
 };
-struct DocumentData {
-    int rating;
-    DocumentStatus status;
+
+enum class DocumentStatus {
+    ACTUAL,
+    IRRELEVANT,
+    BANNED,
+    REMOVED,
 };
 
-void PrintDocument(const Document& document);
