@@ -1,37 +1,39 @@
 #pragma once
-#include<deque>
-#include"search_server.h"
+#include "search_server.h"
+#include <deque>
 
-
-class RequestQueue 
-{
+class RequestQueue {
 public:
-    explicit RequestQueue(const SearchServer& search_server);
-        
-    // сделаем "обертки" для всех методов поиска, чтобы сохранять результаты для нашей статистики
-    template <typename DocumentPredicate>
-    std::vector<Document> AddFindRequest(const std::string& raw_query, DocumentPredicate document_predicate);
-    std::vector<Document> AddFindRequest(const std::string& raw_query, DocumentStatus status); 
-    std::vector<Document> AddFindRequest(const std::string& raw_query); 
-    int GetNoResultRequests() const; 
+    RequestQueue(const SearchServer& search_server) : search_request(search_server) {}
 
+    template <typename DocumentPredicate>
+    std::vector<Document> AddFindRequest(std::string_view raw_query, DocumentPredicate document_predicate);
+    std::vector<Document> AddFindRequest(std::string_view raw_query, DocumentStatus status);
+    std::vector<Document> AddFindRequest(std::string_view raw_query);
+
+    int GetNoResultRequests() const;
 private:
     struct QueryResult {
-        uint64_t timestamp;
-        int results;
+        bool query_result;
     };
-    std::deque<QueryResult> requests_;
-    const SearchServer& search_server_;
-    int no_results_requests_;
-    uint64_t current_time_;
-    const static int min_in_day_ = 1440;
 
-    void AddRequest(int results_num); 
+    const SearchServer& search_request;
+    std::deque<QueryResult> requests_;
+    const static int min_in_day_ = 1440;
 };
 
 template <typename DocumentPredicate>
-std::vector<Document> RequestQueue::AddFindRequest(const std::string& raw_query, DocumentPredicate document_predicate) {
-    const auto result = search_server_.FindTopDocuments(raw_query, document_predicate);
-    AddRequest(result.size());
-    return result;
+std::vector<Document> RequestQueue::AddFindRequest(std::string_view raw_query,
+    DocumentPredicate document_predicate) {
+    std::vector<Document> temp = search_request.FindTopDocuments(raw_query,
+        document_predicate);
+    QueryResult query;
+    query.query_result = (temp.empty() == false);
+
+    if (!(requests_.size() < min_in_day_)) {
+        requests_.pop_front();
+    }
+
+    requests_.push_back(query);
+    return temp;
 }
