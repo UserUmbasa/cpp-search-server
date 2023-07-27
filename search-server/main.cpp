@@ -1,46 +1,44 @@
+#include "process_queries.h"
 #include "search_server.h"
-#include"paginator.h"
-#include"request_queue.h"
-#include "test_user.h"
-#include "remove_duplicates.h"
+#include"document.h"
+#include <execution>
+#include <iostream>
+#include <string>
+#include <vector>
 using namespace std;
-
-
-int main()
-{
-    setlocale(LC_ALL, "Russian");
-
-    // Machine_input_EmptyRequest();
-	SearchServer search_server("and with"s);
-	AddDocument(search_server, 1, "funny pet and nasty rat"s, DocumentStatus::ACTUAL, { 7, 2, 7 });
-	AddDocument(search_server, 2, "funny pet with curly hair"s, DocumentStatus::ACTUAL, { 1, 2 });
-	// дубликат документа 2, будет удалён
-	AddDocument(search_server, 3, "funny pet with curly hair"s, DocumentStatus::ACTUAL, { 1, 2 });
-	// отличие только в стоп-словах, считаем дубликатом
-	AddDocument(search_server, 4, "funny pet and curly hair"s, DocumentStatus::ACTUAL, { 1, 2 });
-	// множество слов такое же, считаем дубликатом документа 1
-	AddDocument(search_server, 5, "funny funny pet and nasty nasty rat"s, DocumentStatus::ACTUAL, { 1, 2 });
-	// добавились новые слова, дубликатом не является
-	AddDocument(search_server, 6, "funny pet and not very nasty rat"s, DocumentStatus::ACTUAL, { 1, 2 });
-	// множество слов такое же, как в id 6, несмотря на другой порядок, считаем дубликатом
-	AddDocument(search_server, 7, "very nasty rat and not very funny pet"s, DocumentStatus::ACTUAL, { 1, 2 });
-	// есть не все слова, не является дубликатом
-	AddDocument(search_server, 8, "pet with rat and rat and rat"s, DocumentStatus::ACTUAL, { 1, 2 });
-	// слова из разных документов, не является дубликатом
-	AddDocument(search_server, 9, "nasty rat with curly hair"s, DocumentStatus::ACTUAL, { 1, 2 });
-
-	// 1) Откажитесь от метода GetDocumentId(int index) и вместо него определите методы begin и end.
-	//for (const int document_id : search_server) {
-		// ...
-	//}
-    
-	// 2) Разработайте метод получения частот слов по id документа :
-	//auto result = search_server.GetWordFrequencies(2);
-    
-	// 3) Разработайте метод удаления документов из поискового сервера
-	//search_server.RemoveDocument(3);
-
-	cout << "Before duplicates removed: "s << search_server.GetDocumentCount() << endl;
-	RemoveDuplicates(search_server);
-	cout << "After duplicates removed: "s << search_server.GetDocumentCount() << endl;	
+void PrintDocument(const Document& document) {
+    cout << "{ "s
+        << "document_id = "s << document.id << ", "s
+        << "relevance = "s << document.relevance << ", "s
+        << "rating = "s << document.rating << " }"s << endl;
+}
+int main() {
+    SearchServer search_server("and with"s);
+    int id = 0;
+    for (
+        const string& text : {
+            "white cat and yellow hat"s,
+            "curly cat curly tail"s,
+            "nasty dog with big eyes"s,
+            "nasty pigeon john"s,
+        }
+        ) {
+        search_server.AddDocument(++id, text, DocumentStatus::ACTUAL, { 1, 2 });
+    }
+    cout << "ACTUAL by default:"s << endl;
+    // последовательная версия
+    for (const Document& document : search_server.FindTopDocuments("curly nasty cat"s)) {
+        PrintDocument(document);
+    }
+    cout << "BANNED:"s << endl;
+    // последовательная версия
+    for (const Document& document : search_server.FindTopDocuments(execution::seq, "curly nasty cat"s, DocumentStatus::BANNED)) {
+        PrintDocument(document);
+    }
+    cout << "Even ids:"s << endl;
+    // параллельная версия
+    for (const Document& document : search_server.FindTopDocuments(execution::par, "curly nasty cat"s, [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; })) {
+        PrintDocument(document);
+    }
+    return 0;
 }
